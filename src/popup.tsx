@@ -5,14 +5,15 @@ import "~style.css";
 
 const IndexPopup = () => {
   const switchLabels = ["Editorial", "Solutions", "Submissions", "Discussion"];
-  const [switchStates, setSwitchStates] = useState(
-    switchLabels.reduce((acc, label) => {
-      acc[label.toLowerCase()] = false;
-      return acc;
-    }, {})
+  const [switchStates, setSwitchStates] = useState({
+    editorial: true,
+    solutions: true,
+    submissions: true,
+    discussion: true,
+  }
   );
 
-  const [selectedTimer, setSelectedTimer] = useState<number>(5); // Default timer value
+  const [selectedTimer, setSelectedTimer] = useState<number>(5); 
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
 
@@ -46,29 +47,21 @@ const IndexPopup = () => {
       }
 
       // Send message to content script
-      chrome.tabs.sendMessage(
-        tab.id,
-        {
-          action: "START_TIMER",
-          duration: selectedTimer
-        },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            console.error("Error sending message:", chrome.runtime.lastError);
-            return;
-          }
-
-
-          setTimeLeft(selectedTimer * 60);
-          setIsTimerRunning(true);
-
-          window.close();
-        }
-      );
+      const message = {
+        action: "START_TIMER",
+        duration: selectedTimer,
+        states: switchStates 
+      }
+      const response = await chrome.tabs.sendMessage(tab.id, message);
+      if (!response) console.error("No Response from the content script")
+      setTimeLeft(selectedTimer * 60);
+      setIsTimerRunning(true);
+      window.close();
     } catch (error) {
       console.error("Error starting timer:", error);
     }
   };
+  
 
   useEffect(() => {
     if (isTimerRunning && timeLeft !== null && timeLeft > 0) {
@@ -80,15 +73,9 @@ const IndexPopup = () => {
     } else if (timeLeft === 0) {
       setIsTimerRunning(false);
       alert("Time's up!");
+      location.reload();
     }
   }, [isTimerRunning, timeLeft]);
-
-  const formatTime = (seconds: number | null) => {
-    if (seconds === null) return "00:00";
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  };
 
   return (
     <div className="plasmo-dark plasmo-flex plasmo-flex-col plasmo-items-center plasmo-justify-center plasmo-w-96 plasmo-bg-[#1A1A1A] plasmo-text-[#E6E6E6] plasmo-shadow-lg plasmo-p-6 plasmo-border plasmo-border-[#333333]">
@@ -137,9 +124,6 @@ const IndexPopup = () => {
           </div>
         </div>
       )}
-      <div className="plasmo-text-2xl plasmo-font-semibold plasmo-text-[#FFA116] plasmo-mb-6">
-        {formatTime(timeLeft)}
-      </div>
 
       {/* Switch Section */}
       <div className="plasmo-grid plasmo-grid-cols-2 plasmo-gap-4 plasmo-w-full plasmo-mb-6">
@@ -165,7 +149,6 @@ const IndexPopup = () => {
         {isTimerRunning ? "Timer Running..." : "Start Timer"}
       </button>
 
-      {/* Support Section */}
       <div className="plasmo-flex plasmo-items-center plasmo-space-x-4 plasmo-mt-4">
         <span className="plasmo-text-sm plasmo-text-[#B3B3B3]">Support:</span>
         <a
